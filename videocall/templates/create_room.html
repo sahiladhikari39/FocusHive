@@ -1,0 +1,32 @@
+{% extends 'header.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Create Study Session</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="title" placeholder="Session Title" required>
+        
+        <select name="type" id="session-type" required>
+            <option value="public">Public Session</option>
+            <option value="private">Private Session</option>
+        </select>
+        
+        <input type="password" name="password" 
+               id="session-password" 
+               placeholder="Set password for private session" 
+               disabled>
+        
+        <button type="submit" class="button">Create Session</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('session-type').addEventListener('change', function() {
+        const passwordField = document.getElementById('session-password');
+        passwordField.disabled = this.value !== 'private';
+        if (this.value !== 'private') passwordField.value = '';
+    });
+</script>
+{% endblock %}
