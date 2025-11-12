@@ -7,13 +7,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <style>
-    .navbar {
-      z-index: 1000; /* Ensure it stays above video elements */
-    }
     body {
       margin: 0;
-      padding-top: 90px;
+      padding: 0;
       font-family: Arial, sans-serif;
+      padding-top: 80px; /* fallback padding */
     }
 
     .navbar {
@@ -27,6 +25,7 @@
       padding: 10px 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       z-index: 1000;
+      height: 60px; /* Fixed height */
     }
 
     .logo {
@@ -65,40 +64,50 @@
       align-items: center;
       justify-content: center;
       background-color: #2ecc71;
-      padding: 10px 15px;
+      padding: 8px 12px;
       border-radius: 10px;
       color: white;
-      gap: 12px;
+      gap: 10px;
+      font-size: 0.9em;
     }
 
     #customTime {
-      width: 50px;
+      width: 40px;
       text-align: center;
       border: none;
       border-radius: 4px;
       font-weight: bold;
-      padding: 3px 5px;
+      padding: 2px;
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
     }
 
     #timer {
       font-weight: bold;
-      font-size: 1.2em;
+      font-size: 1.1em;
     }
 
     .pomodoro-controls button {
-      margin-left: 6px;
-      padding: 5px 10px;
+      margin-left: 5px;
+      padding: 4px 8px;
       border: none;
       border-radius: 4px;
-      background-color: #fff;
+      background-color: rgba(255, 255, 255, 0.9);
       color: #2ecc71;
       font-weight: bold;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      font-size: 0.8em;
     }
 
     .pomodoro-controls button:hover {
-      background-color: #e0e0e0;
+      background-color: white;
+    }
+
+    /* Optional spacer for older content that doesn't have class */
+    .navbar-fix {
+      height: 60px;
+      width: 100%;
+      display: block;
     }
   </style>
 </head>
@@ -128,6 +137,9 @@
     <li><a href="{% url 'contact' %}">Contact</a></li>
   </ul>
 </nav>
+
+<!-- Optional spacer -->
+<div class="navbar-fix"></div>
 
 <!-- Page content -->
 {% block content %}{% endblock %}
@@ -178,6 +190,19 @@
   }
 
   window.onload = updateDisplay;
+</script>
+
+<!-- Navbar spacing fix -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const navbar = document.querySelector('.navbar');
+    const dashboard = document.querySelector('.dashboard');
+
+    if (navbar && dashboard) {
+      const navbarHeight = navbar.offsetHeight;
+      dashboard.style.marginTop = (navbarHeight + 250) + 'px';
+    }
+  });
 </script>
 
 </body>

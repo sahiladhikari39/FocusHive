@@ -2,8 +2,11 @@ from django.shortcuts import redirect, render
 from .forms import RegisterForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+import json
+from .models import UserInterest, StudySession, PomodoroSession
+from django.views.decorators.csrf import csrf_exempt
 
-# Create your views here.
 def home(request):
     return render(request, 'home.html')
 
@@ -12,7 +15,6 @@ def about(request):
 
 def contact(request):
     return render(request, 'contact.html')
-
 
 def register(request):
     if request.method == 'POST':
@@ -23,11 +25,10 @@ def register(request):
         else:
             error_message = form.errors.as_text()
             return render(request, 'register.html', {'error': error_message})
-
     return render(request, 'register.html')
 
 def login_view(request):
-    if request.method=="POST":
+    if request.method == "POST":
         email = request.POST.get('email')
         password = request.POST.get('password')
         user = authenticate(request, username=email, password=password)
@@ -36,14 +37,69 @@ def login_view(request):
             return redirect("/dashboard")
         else:
             return render(request, 'login.html', {'error': "Invalid credentials. Please try again."})
-
     return render(request, 'login.html')
-
 
 @login_required
 def dashboard(request):
-    return render(request, 'dashboard.html', {'name': request.user.first_name})
+    from .recommendations import get_recommendations
+    
+    try:
+        user_interests = UserInterest.objects.get(user=request.user).interests
+    except UserInterest.DoesNotExist:
+        user_interests = ""
+    
+    all_sessions = StudySession.objects.all()
+    
+    try:
+        # Get recommendations with similarity scores (0-1 range)
+        recommendations_with_scores = get_recommendations(request.user)
+        
+        # Create a list of sessions with their scores attached
+        recommendations_with_data = []
+        for item in recommendations_with_scores:
+            if isinstance(item, tuple) and len(item) == 2:
+                session, score = item
+                # Format score to 2 decimal places (0-1 range)
+                session.similarity_score = round(score, 2)
+            else:
+                # Handle case where we get just a session object
+                session = item
+                session.similarity_score = 0.5  # Default score
+                
+            session.tags_list = [tag.strip() for tag in session.tags.split(",")]
+            recommendations_with_data.append(session)
+            
+    except Exception as e:
+        print(f"Error processing recommendations: {e}")
+        # Fallback: show recent sessions with default scores
+        recommendations_with_data = []
+        recent_sessions = StudySession.objects.all().order_by('-created_at')[:5]
+        for session in recent_sessions:
+            session.similarity_score = 0.5
+            session.tags_list = [tag.strip() for tag in session.tags.split(",")]
+            recommendations_with_data.append(session)
+    
+    return render(request, 'dashboard.html', {
+        'name': request.user.first_name,
+        'recommendations': recommendations_with_data,
+        'user_interests': user_interests,
+        'all_sessions': all_sessions,
+    })
 
+@login_required
+def profile(request):
+    try:
+        interest = UserInterest.objects.get(user=request.user)
+    except UserInterest.DoesNotExist:
+        interest = UserInterest(user=request.user, interests="")
+
+    if request.method == 'POST':
+        interests = request.POST.get('interests', '')
+        interest.interests = interests
+        interest.save()
+        return redirect('dashboard')
+
+    return render(request, 'profile.html', {'interests': interest.interests})
 
 @login_required
 def videocall(request):
@@ -58,34 +114,14 @@ def logout_view(request):
 def join_room(request):
     if request.method == 'POST':
         roomID = request.POST['roomID']
-        return redirect("/meeting?roomID=" + roomID)
+        try:
+            session = StudySession.objects.get(id=roomID)
+            session.participants.add(request.user)
+            session.save()
+        except StudySession.DoesNotExist:
+            pass
+        return redirect(f"/meeting?roomID={roomID}")
     return render(request, 'joinroom.html')
-
-
-# Add these imports
-from django.http import JsonResponse
-import json
-from .models import UserInterest, StudySession, PomodoroSession
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from django.views.decorators.csrf import csrf_exempt
-
-
-# Add after logout_view function
-@login_required
-def profile(request):
-    try:
-        interest = UserInterest.objects.get(user=request.user)
-    except UserInterest.DoesNotExist:
-        interest = UserInterest(user=request.user, interests="")
-    
-    if request.method == 'POST':
-        interests = request.POST.get('interests', '')
-        interest.interests = interests
-        interest.save()
-        return redirect('dashboard')
-    
-    return render(request, 'profile.html', {'interests': interest.interests})
 
 @csrf_exempt
 @login_required
@@ -93,7 +129,6 @@ def save_pomodoro(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         session_type = 'work' if data['is_work_time'] else 'break'
-        
         PomodoroSession.objects.create(
             user=request.user,
             duration=data['duration'],
@@ -102,71 +137,23 @@ def save_pomodoro(request):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error'}, status=400)
 
-# Update the dashboard view
 @login_required
-def dashboard(request):
-    # Get user interests
-    try:
-        user_interest = UserInterest.objects.get(user=request.user)
-        user_interests = user_interest.interests
-    except UserInterest.DoesNotExist:
-        user_interests = ""
+def create_session(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description')
+        tags = request.POST.get('tags', '')
+        
+        session = StudySession.objects.create(
+            name=name,
+            description=description,
+            tags=tags,
+            created_by=request.user
+        )
+        
+        return redirect(f"/meeting?roomID={session.id}")
     
-    # Get recommendations with scores
-    scored_recommendations = get_recommendations(request.user)
-    
-    # Extract just the sessions for display
-    recommendations = [session for session, score in scored_recommendations]
-    
-    # Add tags_list to each session for template
-    for session in recommendations:
-        session.tags_list = [tag.strip() for tag in session.tags.split(",")]
-    
-    return render(request, 'dashboard.html', {
-        'name': request.user.first_name,
-        'recommendations': recommendations,
-        'user_interests': user_interests,
-        'scored_recommendations': scored_recommendations
-    })
+    return render(request, 'create_session.html')
 
-# Update the get_recommendations function to return scores
-def get_recommendations(user):
-    try:
-        user_interest = UserInterest.objects.get(user=user)
-        interests = [tag.strip().lower() for tag in user_interest.interests.split(",") if tag.strip()]
-    except UserInterest.DoesNotExist:
-        return []
-    
-    sessions = StudySession.objects.all()
-    if not sessions:
-        return []
-    
-    scored_sessions = []
-    
-    for session in sessions:
-        # Normalize session tags
-        session_tags = [tag.strip().lower() for tag in session.tags.split(",")]
-        
-        # Calculate match score
-        match_score = 0
-        for interest in interests:
-            if interest in session_tags:
-                match_score += 1  # Exact match bonus
-            else:
-                # Partial match (substring)
-                for tag in session_tags:
-                    if interest in tag:
-                        match_score += 0.5
-                        break
-        
-        # Apply length penalty to prevent over-matching
-        relevance = match_score / max(1, len(interests))
-        
-        if relevance > 0:
-            scored_sessions.append((session, relevance))
-    
-    # Sort by relevance
-    scored_sessions.sort(key=lambda x: x[1], reverse=True)
-    
-    # Return only top 3 relevant sessions with scores
-    return scored_sessions[:3]
+def root_redirect(request):
+    return redirect('/login/')

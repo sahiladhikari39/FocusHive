@@ -3,119 +3,320 @@
 
 {% block content %}
 <div class="dashboard">
-  <h1>Welcome, {{name}}!</h1>
-  
-  <div class="dashboard-buttons">
-    <a href="{% url 'meeting' %}" class="button">Create Session</a>
-    <a href="{% url 'join' %}" class="button">Join Session</a>
-    <a href="{% url 'profile' %}" class="button">Set Interests</a>
-    <a href="{% url 'logout' %}" class="button">Logout</a>
-  </div>
-
-  <!-- Debug Information Section -->
-  <div class="debug-info" style="background-color: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <h3>Debug Information</h3>
-    {% if user_interests %}
-      <p><strong>Your Interests:</strong> {{ user_interests }}</p>
-    {% else %}
-      <p><strong>Your Interests:</strong> Not set yet</p>
-    {% endif %}
+    <h1>Welcome, {{ name }}!</h1>
     
-    {% if scored_recommendations %}
-      <p><strong>Recommendation Scores:</strong></p>
-      <ul>
-        {% for session, score in scored_recommendations %}
-          <li>{{ session.name }}: {{ score|floatformat:2 }} (Tags: {{ session.tags }})</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-
-  {% if recommendations %}
-  <div class="recommendations">
-    <h2>Recommended Study Sessions</h2>
-    <div class="session-grid">
-      {% for session in recommendations %}
-      <div class="session-card">
-        <h3>{{ session.name }}</h3>
-        <p>{{ session.description }}</p>
-        <div class="tags">
-          {% for tag in session.tags_list|slice:":3" %}
-            <span class="tag">{{ tag }}</span>
-          {% endfor %}
-        </div>
+    <div class="dashboard-buttons">
+        <a href="{% url 'create_session' %}" class="button">Create Session</a>
         <a href="{% url 'join' %}" class="button">Join Session</a>
-      </div>
-      {% endfor %}
+        <a href="{% url 'profile' %}" class="button">Set Interests</a>
+        <a href="{% url 'logout' %}" class="button">Logout</a>
     </div>
-  </div>
-  {% else %}
-  <div class="no-recommendations">
-    <p>No recommendations yet. Set your interests to get personalized suggestions!</p>
-    <a href="{% url 'profile' %}" class="button">Set Interests</a>
-  </div>
-  {% endif %}
+
+    <div class="debug-info">
+        <h3>Recommendation Information</h3>
+        <div class="debug-content">
+            {% if user_interests %}
+                <div class="debug-item">
+                    <strong>Your Interests:</strong> <span class="interest-tags">{{ user_interests }}</span>
+                </div>
+            {% else %}
+                <div class="debug-item">
+                    <strong>Your Interests:</strong> Not set yet - <a href="{% url 'profile' %}">Set Interests</a>
+                </div>
+            {% endif %}
+            
+            <div class="debug-item">
+                <strong>Cosine Similarity Algorithm:</strong>
+                <div class="algorithm-info">
+                    <p>Used TF-IDF vectorization and cosine similarity to match interests with session tags.</p>
+                    <p><strong>Score Range:</strong> 0.0 - 1.0 (higher = better match)</p>
+                    <p><strong>How it works:</strong> 0 = no match, 1.0 = perfect match</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if recommendations %}
+        <div class="recommendations">
+            <h2 style="color:black;">Recommended Study Sessions</h2>
+            <div class="session-grid">
+                {% for session in recommendations %}
+                    <div class="session-card">
+                        <div class="session-header">
+                            <h3>{{ session.name }}</h3>
+                            <div class="similarity-score similarity-{{ session.similarity_score|floatformat:0 }}">
+                                <span class="score-value">{{ session.similarity_score }}</span>
+                                <span class="score-label">Similarity</span>
+                            </div>
+                        </div>
+                        <p class="session-description">{{ session.description }}</p>
+                        <div class="tags">
+                            {% for tag in session.tags_list %}
+                                <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="session-meta">
+                            <small>Created by: {{ session.created_by.first_name }}</small>
+                            <small>Participants: {{ session.participants.count }}</small>
+                        </div>
+                        <!-- DIRECT JOIN BUTTON -->
+                        <form action="{% url 'join' %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="roomID" value="{{ session.id }}">
+                            <button type="submit" class="button join-button">Join Session</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="no-recommendations">
+            <p>No recommendations found. Try setting more specific interests!</p>
+            <a href="{% url 'profile' %}" class="button">Set Interests</a>
+        </div>
+    {% endif %}
 </div>
 
 <style>
-  .dashboard {
+.dashboard {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-  }
-  
-  .dashboard-buttons {
+    background: rgb(0, 149, 121);
+    min-height: 100vh;
+}
+
+.session-header {
     display: flex;
-    gap: 15px;
-    margin: 20px 0;
-    flex-wrap: wrap;
-  }
-  
-  .session-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-    margin-top: 30px;
-  }
-  
-  .session-card {
-    background: white;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+/* Dynamic similarity score colors based on value */
+.similarity-score {
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: 2px solid;
+    min-width: 80px;
+    background: #fff;
+}
+
+.similarity-1 { border-color: #2e8b57; background: #e8f5e9; }
+.similarity-0 { border-color: #ff6b6b; background: #ffeaea; }
+.similarity-score:not(.similarity-1):not(.similarity-0) { 
+    border-color: #ffa726; background: #fff3e0; 
+}
+
+.score-value {
+    display: block;
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #333;
+}
+
+.score-label {
+    font-size: 0.8em;
+    color: #666;
+    font-weight: 500;
+}
+
+.session-meta {
+    display: flex;
+    justify-content: space-between;
+    margin: 15px 0;
+    font-size: 0.9em;
+    color: #666;
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+}
+
+.session-description {
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+.join-button {
+    width: 100%;
+    margin-top: 15px;
+    background: #2e8b57;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1em;
+    transition: background 0.3s ease;
+}
+
+.join-button:hover {
+    background: #26734a;
+}
+
+.algorithm-info {
+    background: #e8f5e9;
+    padding: 15px;
     border-radius: 8px;
+    margin-top: 8px;
+    border-left: 4px solid #2e8b57;
+}
+
+.algorithm-info p {
+    margin: 8px 0;
+    line-height: 1.4;
+    color: #333;
+}
+
+.algorithm-info strong {
+    color: #2e8b57;
+}
+
+.session-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 25px;
+    margin-top: 30px;
+}
+
+.session-card {
+    background: white;
+    border-radius: 10px;
     padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-  
-  .session-card h3 {
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.session-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.session-card h3 {
     margin-top: 0;
     color: #2e8b57;
-  }
-  
-  .tags {
+    font-size: 1.3em;
+    margin-bottom: 10px;
+}
+
+.tags {
     display: flex;
     gap: 8px;
     margin: 15px 0;
     flex-wrap: wrap;
-  }
-  
-  .tag {
+}
+
+.tag {
     background: #e8f5e9;
     color: #2e7d32;
-    padding: 5px 10px;
+    padding: 6px 12px;
     border-radius: 20px;
-    font-size: 0.9em;
-  }
-  
-  .no-recommendations {
-    background: #fff8e1;
-    padding: 20px;
-    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 500;
+    border: 1px solid #c8e6c9;
+}
+
+.no-recommendations {
+    background: #fff;
+    padding: 40px 20px;
+    border-radius: 10px;
     margin-top: 30px;
     text-align: center;
-  }
-  
-  .debug-info {
-    font-size: 0.9em;
-    color: #555;
-  }
+    border: 2px dashed #dee2e6;
+}
+
+.no-recommendations p {
+    margin-bottom: 20px;
+    color: #6c757d;
+    font-size: 1.1em;
+}
+
+.debug-info {
+    background: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    border-left: 5px solid #2e8b57;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.debug-info h3 {
+    margin-top: 0;
+    color: #2e8b57;
+    font-size: 1.3em;
+    margin-bottom: 15px;
+}
+
+.debug-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.debug-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.debug-item strong {
+    color: #495057;
+    font-size: 1em;
+}
+
+.interest-tags {
+    background: #e3f2fd;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-family: monospace;
+    border: 1px solid #bbdefb;
+    color: #333;
+}
+
+.dashboard-buttons {
+    display: flex;
+    gap: 15px;
+    margin: 25px 0;
+    flex-wrap: wrap;
+}
+
+.dashboard-buttons .button {
+    background: #2e8b57;
+    color: white;
+    padding: 12px 24px;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+}
+
+.dashboard-buttons .button:hover {
+    background: #26734a;
+    text-decoration: none;
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .session-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-buttons {
+        flex-direction: column;
+    }
+    
+    .session-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .similarity-score {
+        align-self: flex-start;
+    }
+}
 </style>
 {% endblock %}

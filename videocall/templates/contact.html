@@ -3,15 +3,105 @@
 
 {% block content %}
 <div class="container">
-    <h1>About FocusHive</h1>
-    <p>
-        FocusHive is a productivity platform designed to enhance your concentration and time management through video sessions, the Pomodoro technique, and smart scheduling.
-    </p>
-    <p>
-        Our mission is to help you stay focused, achieve your goals, and build better work habits — all in a collaborative environment.
-    </p>
-    <p>
-        Whether you're working solo or as part of a team, FocusHive offers tools that adapt to your workflow, making productivity effortless and even enjoyable.
-    </p>
+    <h1 class="page-title">Contact Us</h1>
+    
+    <div class="team-table-wrapper">
+        <table class="team-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Github Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Sahil Adhikari</td>
+                    <td><a href="https://github.com/sahiladhikari39" target="_blank">View Profile</a></td>
+                </tr>
+                <tr>
+                    <td>Prashamsha Basnet</td>
+                    <td><a href="https://github.com/prashamsha7" target="_blank">View Profile</a></td>
+                </tr>
+                <tr>
+                    <td>Anuska Shrestha</td>
+                    <td><a href="https://github.com/anuskastha212" target="_blank">View Profile</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<style>
+    .container {
+        max-width: 900px;
+        margin: 50px auto;
+        padding: 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .page-title {
+        text-align: center;
+        font-size: 36px;
+        color: #333;
+        margin-bottom: 30px;
+    }
+
+    .team-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .team-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 18px;
+    }
+
+    .team-table th,
+    .team-table td {
+        text-align: left;
+        padding: 14px 20px;
+    }
+
+    .team-table thead {
+        background: #2e7d32;
+        color: white;
+    }
+
+    .team-table tbody tr {
+        background: #ffffff;
+        border-bottom: 1px solid #ddd;
+        transition: background 0.3s ease;
+    }
+
+    .team-table tbody tr:hover {
+        background: #f1faff;
+    }
+
+    .team-table a {
+        display: inline-block;
+        padding: 8px 14px;
+        background: #0077b6;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.3s ease;
+    }
+
+    .team-table a:hover {
+        background: #005f8a;
+    }
+
+    @media (max-width: 600px) {
+        .team-table th,
+        .team-table td {
+            font-size: 16px;
+            padding: 10px;
+        }
+        .page-title {
+            font-size: 28px;
+        }
+    }
+</style>
 {% endblock %}
